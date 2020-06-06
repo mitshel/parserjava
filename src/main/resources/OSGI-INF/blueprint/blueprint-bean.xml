@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Импорт библотек-->
+<blueprint xmlns="http://www.osgi.org/xmlns/blueprint/v1.0.0"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xmlns:cm="http://aries.apache.org/blueprint/xmlns/blueprint-cm/v1.1.0"
+           xmlns:prop="http://camel.apache.org/schema/placeholder"
+           xsi:schemaLocation="
+        http://www.osgi.org/xmlns/blueprint/v1.0.0 https://www.osgi.org/xmlns/blueprint/v1.0.0/blueprint.xsd
+        http://camel.apache.org/schema/blueprint http://camel.apache.org/schema/blueprint/camel-blueprint.xsd
+        http://aries.apache.org/blueprint/xmlns/blueprint-cm/v1.1.0 http://aries.apache.org/schemas/blueprint-cm/blueprint-cm-1.1.0.xsd">
+
+
+    <cm:property-placeholder persistent-id="ru.krasmed.servicemix.rosatom.parser.service" update-strategy="reload">
+        <cm:default-properties>
+            <cm:property name="logging" value="true" />
+        </cm:default-properties>
+    </cm:property-placeholder>
+
+    <!-- Соединение с базой-->
+    <bean id="dataSource" class="org.springframework.jdbc.datasource.DriverManagerDataSource">
+        <property name="driverClassName" value="org.postgresql.Driver "/>
+        <property name="url" value="jdbc:postgresql://192.168.3.148:5432/hackaton"/>
+        <property name="username" value="hackaton"/>
+        <property name="password" value="123"/>
+    </bean>
+
+    <!-- Обвязка соединения -->
+    <bean id="jdbcTemplate" class="org.springframework.jdbc.core.JdbcTemplate">
+        <argument ref="dataSource"/>
+    </bean>
+
+    <!-- Управление транзакциями базы -->
+    <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+        <property name="dataSource" ref="dataSource" />
+    </bean>
+    <bean id="txRequired" class="org.apache.camel.spring.spi.SpringTransactionPolicy">
+        <property name="transactionManager" ref="transactionManager"/>
+        <property name="propagationBehaviorName" value="PROPAGATION_REQUIRED"/>
+    </bean>
+
+    <bean id="serviceProcessor" class="ru.krasmed.servicemix.rosatom.parser.service.ServiceProcessor"/>
+
+    <!-- Контекст роута -->
+    <camelContext id="rosatom-parser-service-context" xmlns="http://camel.apache.org/schema/blueprint">
+        <route id="wwwRabotkaRuMain">
+            <from uri="timer://startupTimer?delay=1000&amp;repeatCount=1"/>
+            <log message="Парсер запущен"/>
+            <transacted ref="txRequired" />
+            <bean ref="serviceProcessor"/>
+        </route>
+
+    </camelContext>
+</blueprint>
